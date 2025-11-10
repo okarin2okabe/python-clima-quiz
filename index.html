@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Python</title>
+    <!-- Importar Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos CSS (sin cambios)... */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .timer-display {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1f2937;
+            color: #f3f4f6;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            min-width: 120px;
+            text-align: center;
+        }
+        .quiz-option {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .quiz-option:hover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .quiz-option.selected {
+            border-color: #3b82f6;
+            background-color: #dbeafe;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .correct-answer {
+            background-color: #dcfce7;
+            border: 1px solid #22c55e;
+        }
+        .incorrect-answer {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+
+    <!-- Contenedor Principal -->
+    <div class="mx-auto max-w-4xl bg-white p-6 md:p-10 rounded-xl shadow-lg border border-gray-200">
+
+        <!-- Título -->
+        <h1 class="text-3xl font-bold text-center text-blue-800 mb-6">Quiz de Python</h1>
+        <p class="text-center text-gray-600 mb-6">Bienvenido al sistema de evaluación.</p>
+
+        <!-- Estado de Firebase (Carga) -->
+        <div id="firebase-status" class="text-center p-4 bg-gray-100 rounded-lg mb-4">
+            <p id="firebase-status-text" class="text-gray-700">Cargando configuración...</p>
+        </div>
+
+        <!-- ID de Usuario -->
+        <div id="user-id-display" class="hidden text-center p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+            <p class="text-sm text-blue-800 font-medium">Cargado exitosamente. Tu ID de Usuario es:</p>
+            <p id="user-id-text" class="text-lg font-bold text-blue-900 break-words"></p>
+        </div>
+
+        <!-- Formulario de Inicio (Selección de Quiz y Nombre) -->
+        <div id="start-form" class="hidden p-6 bg-gray-50 rounded-lg border">
+            <h2 class="text-xl font-semibold text-center mb-4">Completa para Iniciar</h2>
+
+            <div class="mb-4">
+                <label for="quiz-select" class="block text-sm font-medium text-gray-700 mb-1">Elige tu Quiz:</label>
+                <select id="quiz-select" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Selecciona un quiz --</option>
+                    <option value="quiz1">Quiz 1: Fundamentos de Programación en Python</option>
+                    <option value="quiz2">Quiz 2: Análisis de Datos con Pandas</option>
+                    <!-- <option value="quiz3">Quiz 3: Generación de productos climáticos</option>
+                    <option value="quiz4">Quiz 4: Interpolación y EFOs con datos grillados</option>
+                    <option value="quiz5">Quiz 5: Manejo y Procesamiento de Datos climáticos en Archivos y Datos Climáticos</option>
+                    Agrega más quizzes aquí si es necesario -->
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="name-input" class="block text-sm font-medium text-gray-700 mb-1">Tu Nombre:</label>
+                <input type="text" id="name-input" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Escribe tu nombre completo">
+            </div>
+
+            <button id="start-quiz-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-300">
+                Iniciar Examen
+            </button>
+        </div>
+
+        <!-- Sección del Quiz -->
+        <div id="quiz-section" class="hidden">
+            <!-- Encabezado del Quiz (Pregunta N de M y Temporizador) -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div>
+                    <span id="question-counter" class="text-lg font-bold text-gray-800">Pregunta 1 de N</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-gray-700 font-semibold">Tiempo Restante:</span>
+                    <span id="timer" class="timer-display">30:00</span>
+                </div>
+            </div>
+
+            <!-- Contenedor de la Pregunta -->
+            <div id="question-container" class="mb-6">
+                <p id="question-text" class="text-xl font-semibold text-gray-900 mb-5 leading-relaxed"></p>
+                <div id="options-container" class="space-y-3">
+                    <!-- Las opciones se generarán con JS aquí -->
+                </div>
+            </div>
+
+            <!-- Botones de Navegación -->
+            <div class="flex justify-between mt-8">
+                <button id="next-btn" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg shadow hover:bg-blue-700 transition">
+                    Siguiente
+                </button>
+                <button id="submit-btn" class="hidden bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow hover:bg-green-700 transition">
+                    Entregar
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección de Resultados -->
+        <div id="results-section" class="hidden text-center p-6">
+            <h2 class="text-3xl font-bold text-blue-800 mb-4">Resultados del Quiz</h2>
+            <div id="previous-submission-message" class="hidden p-4 mb-4 text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg">
+                Ya has completado este quiz. A continuación se muestran tus resultados anteriores.
+            </div>
+            <p class="text-xl text-gray-700 mb-6">Puntaje Final:</p>
+            <p id="score" class="text-5xl font-extrabold text-gray-900 mb-8">0/0</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <button id="review-btn" class="bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg shadow hover:bg-gray-800 transition">
+                    Ver Respuestas
+                </button>
+                <button id="restart-btn" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow hover:bg-blue-700 transition">
+                    Reiniciar (Volver al Inicio)
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección de Revisión de Respuestas -->
+        <div id="review-section" class="hidden p-4">
+            <h2 class="text-2xl font-bold text-center text-blue-800 mb-6">Revisa tus Respuestas</h2>
+            <div id="review-container" class="space-y-6">
+                <!-- Contenido de revisión generado por JS -->
+            </div>
+            <button id="back-to-results-btn" class="mt-8 w-full bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg shadow hover:bg-gray-800 transition">
+                Volver a Resultados
+            </button>
+        </div>
+
+        <!-- Formulario de Comentarios -->
+        <div id="comment-form" class="hidden mt-10 pt-6 border-t border-gray-200">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Deja un Comentario</h3>
+            <p class="text-sm text-gray-600 mb-3">¿Encontraste un error en una pregunta? ¿Tienes alguna sugerencia?</p>
+            <textarea id="comment-input" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4" placeholder="Escribe tu comentario..."></textarea>
+            <button id="submit-comment-btn" class="mt-3 w-full sm:w-auto bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow hover:bg-green-700 transition">
+                Enviar Comentario
+            </button>
+        </div>
+
+    </div> <!-- Fin del Contenedor Principal -->
+
+    <!-- Alerta Flotante -->
+    <div id="alert-box" class="hidden fixed top-5 right-5 w-auto max-w-sm p-4 rounded-lg shadow-lg text-white z-50 transition-opacity duration-300">
+        <p id="alert-text"></p>
+    </div>
+
+    <!-- =========== SCRIPT DE CONFIGURACIÓN =========== -->
+    <!-- Ponemos todas las variables de configuración aquí -->
+    <script>
+        window.APP_CONFIG = {
+            "appId": "python-app-id",
+            "quizDurationMinutes": 30, // <-- CAMBIADO A 30 MINUTOS
+            "numQuestionsToSelect": 20, // <-- AÑADIDO (20 PREGUNTAS)
+            "firebaseConfig": {
+                "apiKey": "AIzaSyApnJRh7lDZWbJmzxSBGLT70MKVIUFdpNI",
+                "authDomain": "quiz-data-b3c8b.firebaseapp.com",
+                "projectId": "quiz-data-b3c8b",
+                "storageBucket": "quiz-data-b3c8b.firebasestorage.app",
+                "messagingSenderId": "628496682566",
+                "appId": "1:628496682566:web:5b693e2137e82947894447"
+            }
+        };
+    </script>
+
+    <!-- =========== SCRIPT PRINCIPAL DE LA APP =========== -->
+    <script type="module">
+        // Importar funciones de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            getDoc,
+            addDoc,
+            setDoc,
+            updateDoc,
+            onSnapshot,
+            collection,
+            collectionGroup,
+            query,
+            where,
+            getDocs,
+            setLogLevel
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Variables de Configuración (se cargarán desde el script anterior) ---
+        let APP_ID;
+        let QUIZ_DURATION_MINUTES;
+        let NUM_QUESTIONS_TO_SELECT; // <-- Variable para el N° de preguntas
+
+        // --- Variables Globales ---
+        let db, auth;
+        let userId = null;
+        let userName = '';
+        let quizId = ''; // p.ej. 'quiz1'
+        let questionsCollection = ''; // p.ej. 'quiz1_questions'
+        let resultsCollection = ''; // p.ej. 'quiz1'
+
+        let questions = []; // <-- Esta será la lista de 20 preguntas
+        let userAnswers = [];
+        let currentQuestionIndex = 0;
+        let timerInterval = null;
+        let quizResultDocId = null; // To store the ID of the public quiz result document
+
+        // --- Selectores de Elementos del DOM ---
+        const firebaseStatusText = document.getElementById('firebase-status-text');
+        const firebaseStatusEl = document.getElementById('firebase-status');
+        const userIdDisplayEl = document.getElementById('user-id-display');
+        const userIdText = document.getElementById('user-id-text');
+
+        const startFormEl = document.getElementById('start-form');
+        const quizSelectEl = document.getElementById('quiz-select');
+        const nameInputEl = document.getElementById('name-input');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+
+        const quizSectionEl = document.getElementById('quiz-section');
+        const questionCounterEl = document.getElementById('question-counter');
+        const timerEl = document.getElementById('timer');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+
+        const resultsSectionEl = document.getElementById('results-section');
+        const prevSubmissionMsg = document.getElementById('previous-submission-message');
+        const scoreEl = document.getElementById('score');
+        const reviewBtn = document.getElementById('review-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        const reviewSectionEl = document.getElementById('review-section');
+        const reviewContainerEl = document.getElementById('review-container');
+        const backToResultsBtn = document.getElementById('back-to-results-btn');
+
+        const commentFormEl = document.getElementById('comment-form');
+        const commentInputEl = document.getElementById('comment-input');
+        const submitCommentBtn = document.getElementById('submit-comment-btn');
+
+        const alertBox = document.getElementById('alert-box');
+        const alertText = document.getElementById('alert-text');
+
+        // --- Funciones de Utilidad ---
+        function showSection(element) {
+            element.classList.remove('hidden');
+        }
+
+        function hideSection(element) {
+            element.classList.add('hidden');
+        }
+
+        function showAlert(message, isError = false) {
+            alertText.innerText = message;
+            alertBox.className = 'hidden'; // Reset
+            void alertBox.offsetWidth; // Truco para reiniciar la animación
+
+            const bgColor = isError ? 'bg-red-600' : 'bg-green-600';
+            alertBox.classList.add('fixed', 'top-5', 'right-5', 'p-4', 'rounded-lg', 'shadow-lg', 'text-white', 'z-50', 'transition-opacity', 'duration-300', bgColor);
+            alertBox.classList.remove('hidden');
+
+            setTimeout(() => {
+                alertBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 5. Función para normalizar strings (quitar tildes y a minúsculas)
+        function normalizeString(str) {
+            if (!str) return "";
+            return str
+                .toLowerCase()
+                .normalize("NFD") // Descomponer tildes
+                .replace(/[\u0300-\u036f]/g, ""); // Quitar diacríticos
+        }
+
+        function formatText(str) {
+                    if (!str) return "";
+                    // Usa una expresión regular para buscar `texto` y reemplazarlo
+                    // /`([^`]+)`/g busca...
+                    // ` -> el backtick inicial
+                    // ([^`]+) -> 1 o más caracteres que NO sean un backtick (y los captura en el "Grupo 1")
+                    // ` -> el backtick final
+                    // g -> flag "global" para reemplazar todas las coincidencias
+                    return str.replace(/`([^`]+)`/g, '<strong class="text-blue-800 font-semibold">$1</strong>');
+                }
+
+        // Función para mezclar un array (Algoritmo Fisher-Yates)
+        function shuffleArray(array) {
+            // Copia el array para no modificar el original si es necesario
+            let newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        // --- Lógica Principal de la App ---
+
+        // 1. Iniciar la App
+        async function initApp() {
+            let firebaseConfig;
+
+            // PASO 1: Leer la configuración desde la variable global window.APP_CONFIG
+            try {
+                if (typeof window.APP_CONFIG === 'undefined' || !window.APP_CONFIG.firebaseConfig) {
+                    throw new Error("La variable de configuración global 'APP_CONFIG' no está definida o está incompleta.");
+                }
+
+                const config = window.APP_CONFIG;
+
+                // Asignar las variables estáticas desde el objeto global
+                firebaseConfig = config.firebaseConfig;
+                APP_ID = config.appId;
+                QUIZ_DURATION_MINUTES = config.quizDurationMinutes || 30; // <-- Leer 30
+                NUM_QUESTIONS_TO_SELECT = config.numQuestionsToSelect || 20; // <-- Leer 20
+
+                console.log("Configuración cargada:");
+                console.log(`App ID: ${APP_ID}, Duración: ${QUIZ_DURATION_MINUTES} min, Preguntas: ${NUM_QUESTIONS_TO_SELECT}`);
+
+            } catch (error) {
+                console.error("Error al leer la configuración:", error);
+                firebaseStatusText.innerText = 'Error: No se pudo leer la configuración interna.';
+                showAlert("Error crítico: " + error.message, true);
+                return;
+            }
+
+            // --- Si la carga fue exitosa, continuar ---
+
+            try {
+                // PASO 2: Inicializar Firebase App y Servicios
+                firebaseStatusText.innerText = "Conectando a Firebase...";
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setLogLevel('debug');
+
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                // Manejar estado de autenticación
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Usuario autenticado:", userId);
+
+                        firebaseStatusText.innerText = 'Firebase: Conectado';
+                        userIdText.innerText = userId;
+                        showSection(userIdDisplayEl);
+                        hideSection(firebaseStatusEl);
+                        showSection(startFormEl);
+
+                    } else {
+                        console.log("Sin usuario. Intentando iniciar sesión...");
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+
+                // Asignar listeners (sin cambios)
+                startQuizBtn.addEventListener('click', handleStartQuiz);
+                nextBtn.addEventListener('click', handleNextQuestion);
+                submitBtn.addEventListener('click', handleSubmit);
+                reviewBtn.addEventListener('click', showReviewSection);
+                restartBtn.addEventListener('click', () => window.location.reload());
+                backToResultsBtn.addEventListener('click', () => {
+                    hideSection(reviewSectionEl);
+                    showSection(resultsSectionEl);
+                });
+                submitCommentBtn.addEventListener('click', handleCommentSubmit);
+
+            } catch (error) {
+                console.error("Error en inicialización de Firebase: ", error);
+                firebaseStatusText.innerText = 'Firebase: Error de Conexión';
+                showAlert('Error al conectar con Firebase.', true);
+            }
+        }
+
+        // 2. Manejar el inicio del Quiz
+        async function handleStartQuiz() {
+            userName = nameInputEl.value.trim();
+            quizId = quizSelectEl.value;
+
+            if (!userName) {
+                showAlert('Por favor, escribe tu nombre.', true);
+                return;
+            }
+            if (!quizId) {
+                showAlert('Por favor, selecciona un quiz.', true);
+                return;
+            }
+
+            questionsCollection = `${quizId}`;
+            resultsCollection = quizId;
+
+            console.log(`Iniciando quiz: ${quizId}`);
+            hideSection(startFormEl);
+
+            const submitted = await checkPreviousSubmission();
+            if (!submitted) {
+                const fetched = await fetchQuizQuestions();
+                if (fetched) {
+                    startQuiz();
+                }
+            }
+        }
+
+        // 3. Verificar entregas anteriores
+        async function checkPreviousSubmission() {
+            if (!userId || !resultsCollection) return false;
+            const resultsDocPath = `artifacts/${APP_ID}/private/quizzes/${resultsCollection}/users/${userId}/submission`;
+            const resultsDocRef = doc(db, resultsDocPath);
+
+            try {
+                const docSnap = await getDoc(resultsDocRef);
+                if (docSnap.exists()) {
+                    console.log("Entrega anterior encontrada.");
+                    const data = docSnap.data();
+                    questions = data.questions;
+                    userAnswers = data.answers;
+
+                    displayResults(data.score);
+                    showSection(prevSubmissionMsg);
+                    hideSection(quizSectionEl);
+                    showSection(resultsSectionEl);
+                    showSection(commentFormEl);
+                    return true;
+                }
+                console.log("No se encontró entrega anterior.");
+                return false;
+            } catch (error) {
+                console.error("Error verificando entrega anterior:", error);
+                showAlert("Error al verificar entregas anteriores.", true);
+                return false;
+            }
+        }
+
+        // 4. Cargar Preguntas del Quiz desde Firestore
+        async function fetchQuizQuestions() {
+            const qPath = `artifacts/${APP_ID}/public/data/quizzes/${questionsCollection}/questions`;
+            console.log(`Buscando preguntas en: ${qPath}`);
+
+            try {
+                const q = query(collection(db, qPath));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    console.error("No se encontraron preguntas.");
+                    showAlert(`No se encontraron preguntas en la colección '${questionsCollection}'.`, true);
+                    showSection(startFormEl);
+                    return false;
+                }
+
+                // Cargar todas las preguntas
+                let allQuestions = [];
+                querySnapshot.forEach((doc) => {
+                    allQuestions.push({ id: doc.id, ...doc.data() });
+                });
+                console.log(`Se encontraron ${allQuestions.length} preguntas en total.`);
+
+                // *** LÓGICA DE 20 PREGUNTAS ALEATORIAS ***
+                // 1. Mezclar todas las preguntas
+                let shuffledQuestions = shuffleArray(allQuestions);
+
+                // 2. Seleccionar solo las primeras 20 (o menos si no hay 20)
+                let selectedQuestions = shuffledQuestions.slice(0, NUM_QUESTIONS_TO_SELECT);
+
+                // 3. Formatear las 20 seleccionadas
+                questions = selectedQuestions.map(q => ({
+                    ...q,
+                    alternatives: q.alternatives.split('; ').map(alt => alt.trim())
+                }));
+
+                userAnswers = new Array(questions.length).fill(null);
+                console.log(`Se seleccionaron y mezclaron ${questions.length} preguntas para este quiz.`);
+
+                if (questions.length === 0) {
+                   console.error("Error: la lista de preguntas seleccionadas está vacía.");
+                   showAlert("Error: No se pudieron cargar las preguntas seleccionadas.", true);
+                   return false;
+                }
+
+                return true;
+
+            } catch (error) {
+                console.error("Error al cargar las preguntas: ", error);
+                showAlert("Error al cargar las preguntas desde Firestore.", true);
+                showSection(startFormEl);
+                return false;
+            }
+        }
+
+        // 5. Iniciar el Quiz (UI)
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            showSection(quizSectionEl);
+            displayQuestion();
+            // Usar la duración de 30 minutos
+            startTimer(QUIZ_DURATION_MINUTES * 60);
+        }
+
+        // 6. Mostrar una pregunta
+        function displayQuestion() {
+            if (currentQuestionIndex >= questions.length || !questions[currentQuestionIndex]) {
+                console.error("Error: Se intentó mostrar una pregunta inválida.");
+                showAlert("Error al mostrar la pregunta.", true);
+                handleSubmit(); // Terminar el quiz si hay error
+                return;
+            }
+
+            const question = questions[currentQuestionIndex];
+            // Mostrar N de 20 (o el total seleccionado)
+            questionCounterEl.innerText = `Pregunta ${currentQuestionIndex + 1} de ${questions.length}`;
+            //questionTextEl.innerText = question.question;
+            questionTextEl.innerHTML = formatText(question.question);
+            optionsContainerEl.innerHTML = '';
+
+            question.alternatives.forEach((option, index) => {
+                const optionEl = document.createElement('button');
+                //optionEl.innerText = option;
+                optionEl.innerHTML = formatText(option);
+                optionEl.classList.add('w-full', 'p-4', 'text-left', 'border', 'border-gray-300', 'rounded-lg', 'quiz-option');
+                //optionEl.onclick = () => selectOption(index, optionEl);
+                optionEl.onclick = () => selectOption(index, optionEl, option); // Pasamos el 'option' original
+
+                if (userAnswers[currentQuestionIndex] === option) {
+                    optionEl.classList.add('selected');
+                }
+                optionsContainerEl.appendChild(optionEl);
+            });
+
+            if (currentQuestionIndex === questions.length - 1) {
+                hideSection(nextBtn);
+                showSection(submitBtn);
+            } else {
+                showSection(nextBtn);
+                hideSection(submitBtn);
+            }
+        }
+
+        // 7. Manejar selección de opción
+        function selectOption(optionIndex, selectedButton, optionText) {
+            const selectedAnswer = questions[currentQuestionIndex].alternatives[optionIndex];
+            //userAnswers[currentQuestionIndex] = selectedAnswer;
+            userAnswers[currentQuestionIndex] = optionText;
+
+            document.querySelectorAll('.quiz-option').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            selectedButton.classList.add('selected');
+        }
+
+        // 8. Manejar "Siguiente Pregunta"
+        function handleNextQuestion() {
+            if (userAnswers[currentQuestionIndex] === null) {
+                showAlert('Por favor, selecciona una respuesta.', true);
+                return;
+            }
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                displayQuestion();
+            }
+        }
+
+        // 9. Iniciar el Temporizador
+        function startTimer(durationInSeconds) {
+            let timer = durationInSeconds;
+            // Actualizar el texto del timer inmediatamente
+            let minutes = parseInt(timer / 60, 10);
+            let seconds = parseInt(timer % 60, 10);
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            seconds = seconds < 10 ? "0" + seconds : seconds;
+            timerEl.innerText = `${minutes}:${seconds}`;
+
+            timerInterval = setInterval(() => {
+                let minutes = parseInt(timer / 60, 10);
+                let seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                timerEl.innerText = `${minutes}:${seconds}`;
+
+                if (--timer < 0) {
+                    clearInterval(timerInterval);
+                    showAlert('¡Se acabó el tiempo! Enviando automáticamente.', true);
+                    handleSubmit();
+                }
+            }, 1000);
+        }
+
+        // 10. Calcular Puntaje
+        function calculateScore() {
+            let score = 0;
+            questions.forEach((q, index) => {
+                // q.answer es "A" (limpio)
+                const correctAnswerLetter = q.answer ? q.answer.trim() : null;
+
+                // userAnswers[index] es "A) ..." (texto completo)
+                const userAnswerFullText = userAnswers[index] ? userAnswers[index].trim() : null;
+
+                if (!userAnswerFullText || !correctAnswerLetter) {
+                    return; // No se respondió o la pregunta no tiene respuesta
+                }
+
+                // Extraer la letra de la respuesta del usuario:
+                // "A) ..." -> split(')')[0] -> "A"
+                const userAnswerLetter = userAnswerFullText.split(')')[0].trim();
+
+                // Comparar letra con letra
+                if (userAnswerLetter === correctAnswerLetter) {
+                    score++;
+                } else {
+                    // Log para depuración
+                    console.log(`Error en Pregunta ${index + 1}:`);
+                    console.log(`  Tu respuesta (letra): ${userAnswerLetter}`);
+                    console.log(`  Respuesta correcta (letra): ${correctAnswerLetter}`);
+                }
+            });
+            return score;
+        }
+
+        // 11. Manejar "Entregar Quiz"
+        async function handleSubmit() {
+            clearInterval(timerInterval);
+            const score = calculateScore();
+            const total = questions.length; // Total es 20 (o las cargadas)
+
+            await saveResults(score, total);
+
+            displayResults(score);
+            hideSection(quizSectionEl);
+            showSection(resultsSectionEl);
+            showSection(commentFormEl);
+        }
+
+        // 12. Guardar Resultados en Firestore
+        async function saveResults(score, total) {
+            if (!userId || !resultsCollection) return;
+
+            const resultsDocPath = `artifacts/${APP_ID}/private/quizzes/${resultsCollection}/users/${userId}/submission`;
+            const resultsDocRef = doc(db, resultsDocPath);
+            const questionStrings = questions.map(q => q.question);
+            const resultsData = {
+                userName: userName,
+                userNameNormalized: normalizeString(userName),
+                userId: userId,
+                quizId: quizId,
+                score: score,
+                timestamp: new Date().toISOString(),
+                answers: userAnswers,
+                questions: questionStrings // Guardamos las 20 preguntas que se mostraron
+            };
+
+            try {
+                await setDoc(resultsDocRef, resultsData);
+                showAlert('¡Quiz enviado con éxito!');
+                console.log("Resultados guardados en:", resultsDocPath);
+                // Save score to a public collection for statistics
+                const publicResultsRef = collection(db, `artifacts/${APP_ID}/public/data/quizzes/${resultsCollection}/users`);
+                const docRef = await addDoc(publicResultsRef, {
+                    userName: userName,
+                    userNameNormalized: normalizeString(userName),
+                    userId: userId,
+                    quizId: quizId,
+                    score: score,
+                    timestamp: new Date().toISOString(),
+                    answers: userAnswers,
+                    questions: questionStrings
+                });
+                quizResultDocId = docRef.id; // Store the ID for later update
+                console.log("Quiz results saved to public collection for statistics.");
+
+            } catch (error) {
+                console.error("Error al guardar resultados: ", error);
+                showAlert('Error al enviar resultados: ' + error.message, true);
+            }
+        };
+
+        // 13. Mostrar Resultados
+        function displayResults(score) {
+            scoreEl.innerText = `${score} / ${window.APP_CONFIG.numQuestionsToSelect}`;
+        }
+
+        // 14. Mostrar Sección de Revisión
+        function showReviewSection() {
+            reviewContainerEl.innerHTML = '';
+
+            questions.forEach((q, index) => {
+                const userAnswer = userAnswers[index].split(')')[0].trim();
+                const correctAnswer = q.answer;
+                const correctDescription = q.description;
+                const isCorrect = userAnswer === correctAnswer;
+
+                let optionsHtml = q.alternatives.map(option => {
+                    let classList = 'p-3 border rounded-lg';
+                    const optionLetter = option.split(')')[0].trim(); // Extrae la letra (ej. "A")
+                    if (optionLetter === correctAnswer) { // Compara "A" con "A"
+                        classList += ' correct-answer';
+                    }
+                    if (optionLetter === userAnswer && !isCorrect) {
+                        classList += ' incorrect-answer';
+                    }
+                    //return `<li class="${classList}">${option}</li>`;
+                    return `<li class="${classList}">${formatText(option)}</li>`;
+                }).join('');
+
+                const reviewBlock = `
+                    <div class="p-4 border rounded-lg shadow-sm bg-white">
+                        <p class="text-lg font-semibold mb-3">${index + 1}. ${formatText(q.question)}</p>
+                        <ul class="space-y-2 mb-4">
+                            ${optionsHtml}
+                        </ul>
+                        <div class="text-sm">
+                            <p><strong>Tu respuesta:</strong> ${userAnswer || "No respondida"}</p>
+                            ${!isCorrect ? `<p><strong>Respuesta correcta:</strong> ${correctAnswer}) ${correctDescription}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                reviewContainerEl.innerHTML += reviewBlock;
+            });
+
+            hideSection(resultsSectionEl);
+            showSection(reviewSectionEl);
+        }
+
+        // 15. Manejar Envío de Comentario
+        async function handleCommentSubmit() {
+            const commentText = commentInputEl.value.trim();
+            if (!commentText) {
+                showAlert('Por favor, escribe un comentario.', true);
+                return;
+            }
+            if (!userId || !resultsCollection) {
+                showAlert('Error: No se puede enviar el comentario (ID de usuario o quiz no definido).', true);
+                return;
+            }
+
+            try {
+              // Update the existing document with the comment
+              const resultDocRef = doc(db, `artifacts/${APP_ID}/public/data/quizzes/${resultsCollection}/users`, quizResultDocId);
+              await updateDoc(resultDocRef, {
+                  comment: commentText,
+              });
+                showAlert('¡Comentario enviado! Gracias.');
+                commentInputEl.value = '';
+            } catch (error) {
+                console.error("Error al guardar comentario: ", error);
+                showAlert('Error al enviar el comentario: ' + error.message, true);
+            }
+        }
+
+        // Iniciar la aplicación cuando la ventana se cargue
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>
